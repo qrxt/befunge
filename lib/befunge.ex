@@ -28,24 +28,28 @@ end
 
 defmodule Stack do
   def pop([]) do
-    0
+    { 0, [] }
   end
 
   def pop(stack) do
     [ first | rest ] = stack
     { first, rest }
   end
+
+  def push(stack, item) do
+    [ item | stack ]
+  end
 end
 
 defmodule Befunge do
   def execute(command, acc) do
-    { stack, coords, _, output } = acc
+    { _, coords, _, output } = acc
 
     current = command
       |> Grid.read_cell(coords)
 
     if current === "@" do
-      stack
+      output
     else
       parsed = current
         |> Integer.parse
@@ -63,28 +67,33 @@ defmodule Befunge do
   def execute(command) do
     command
       |> Grid.from
-      |> execute({ [], { 0, 0 }, :right, ""})
+      |> execute({ [], { 0, 0 }, :right, ""}) # start
   end
 
   def get_next_acc(acc, digit) when (digit in 0..9) do
     { stack, coords, direction, output } = acc
+
     { [ digit | stack ], move(coords, direction), direction, output }
   end
 
   def get_next_acc(acc, symbol) do
     { stack, coords, direction, output } = acc
+    { top, rest } = Stack.pop(stack)
 
     case symbol do
       ">" -> { stack, move(coords, :right), :right, output }
       "v" -> { stack, move(coords, :down), :down, output }
       "<" -> { stack, move(coords, :left), :left, output }
       "^" -> { stack, move(coords, :up), :up, output }
-      "+" -> { add(stack), move(coords, direction), direction, output }
+      "." -> { rest, move(coords, direction), direction, output |> output_as_integer(top) }
+      "," -> { rest, move(coords, direction), direction, output |> output_as_string(top) }
+      ":" -> { [ top | stack ], move(coords, direction), direction, output }
+      "_" -> if_hrz(acc)
       _ -> { stack, move(coords, direction), direction, output }
     end
   end
 
-  def move({ x, y }, direction) do
+  defp move({ x, y }, direction) do
     case direction do
       :right -> { x + 1, y }
       :down -> { x, y + 1 }
@@ -93,18 +102,26 @@ defmodule Befunge do
     end
   end
 
-  def add(stack) do
-    { first, rest } = stack
-      |> Stack.pop
+  defp output_as_integer(output, top) do
+    output <> Integer.to_string(top)
+  end
 
-    { second, next_stack }  = rest
-      |> Stack.pop
+  defp output_as_string(output, top) do
+    output <> List.to_string([top])
+  end
 
-    [ first + second | next_stack ]
+  defp if_hrz({ stack, coords, _, output }) do
+    { top, rest } = Stack.pop(stack)
+
+    case top do
+      0 -> { rest, move(coords, :right), :right, output }
+      _ -> { rest, move(coords, :left), :left, output }
+    end
   end
 end
 
-">   1v" <> "\n" <>
-"@  32<"
+">987v>.v" <> "\n" <>
+"v456<  :" <> "\n" <>
+">321 ^ _@"
   |> Befunge.execute
   |> IO.inspect
