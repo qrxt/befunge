@@ -89,6 +89,8 @@ defmodule Befunge do
       "," -> { rest, move(coords, direction), direction, output |> output_as_string(top) }
       ":" -> { [ top | stack ], move(coords, direction), direction, output }
       "_" -> if_hrz(acc)
+      "|" -> if_vrt(acc)
+      "#" -> { stack, jump(coords, direction), direction, output }
       _ -> { stack, move(coords, direction), direction, output }
     end
   end
@@ -99,6 +101,15 @@ defmodule Befunge do
       :down -> { x, y + 1 }
       :left -> { x - 1, y }
       :up -> { x, y - 1 }
+    end
+  end
+
+  defp jump({ x, y }, direction) do
+    case direction do
+      :right -> { x + 2, y }
+      :down -> { x, y + 2 }
+      :left -> { x - 2, y }
+      :up -> { x, y - 2 }
     end
   end
 
@@ -118,10 +129,18 @@ defmodule Befunge do
       _ -> { rest, move(coords, :left), :left, output }
     end
   end
+
+  defp if_vrt({ stack, coords, _, output }) do
+    { top, rest } = Stack.pop(stack)
+
+    case top do
+      0 -> { rest, move(coords, :down), :down, output }
+      _ -> { rest, move(coords, :up), :up, output }
+    end
+  end
 end
 
-">987v>.v" <> "\n" <>
-"v456<  :" <> "\n" <>
-">321 ^ _@"
+">#@1.@" <> "\n" <>
+""
   |> Befunge.execute
   |> IO.inspect
