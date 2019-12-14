@@ -43,7 +43,7 @@ end
 
 defmodule Befunge do
   def execute(command, acc) do
-    { _, coords, _, output } = acc
+    { _, coords, _, _, output } = acc
 
     current = command
       |> Grid.read_cell(coords)
@@ -67,57 +67,70 @@ defmodule Befunge do
   def execute(command) do
     command
       |> Grid.from
-      |> execute({ [], { 0, 0 }, :right, ""}) # start
+      |> execute({ [], { 0, 0 }, :right, :numeric, ""}) # start
   end
 
   def get_next_acc(acc, digit) when (digit in 0..9) do
-    { stack, coords, direction, output } = acc
+    { stack, coords, direction, mode, output } = acc
 
-    { [ digit | stack ], move(coords, direction), direction, output }
+    { [ digit | stack ], move(coords, direction), direction, mode, output }
   end
 
   def get_next_acc(acc, symbol) do
-    { stack, coords, direction, output } = acc
+    { stack, coords, direction, mode, output } = acc
     { top, rest } = Stack.pop(stack)
 
     keep_moving = move(coords, direction)
 
     # todo:
-    # "(switch mode)
     # p(put)
     # g(get)
-    case symbol do
-      ">" -> { stack, move(coords, :right), :right, output }
-      "v" -> { stack, move(coords, :down), :down, output }
-      "<" -> { stack, move(coords, :left), :left, output }
-      "^" -> { stack, move(coords, :up), :up, output }
-      "?" -> rnd_move(acc)
-      "#" -> { stack, jump(coords, direction), direction, output }
 
-      "." -> { rest, keep_moving, direction, output |> output_as_integer(top) }
-      "," -> { rest, keep_moving, direction, output |> output_as_string(top) }
-      ":" -> { [ top | stack ], keep_moving, direction, output }
+    if mode === :ascii && symbol !== "'" do
+      { [ symbol | stack ], keep_moving, direction, mode, output }
+    else
+      case symbol do
+        ">" -> { stack, move(coords, :right), :right, mode, output }
+        "v" -> { stack, move(coords, :down), :down, mode, output }
+        "<" -> { stack, move(coords, :left), :left, mode, output }
+        "^" -> { stack, move(coords, :up), :up, mode, output }
+        "?" -> rnd_move(acc)
+        "#" -> { stack, jump(coords, direction), direction, mode, output }
 
-      "_" -> if_hrz(acc)
-      "|" -> if_vrt(acc)
+        "." -> { rest, keep_moving, direction, mode, output |> output_as_integer(top) }
+        "," -> { rest, keep_moving, direction, mode, output |> output_as_string(top) }
+        ":" -> { [ top | stack ], keep_moving, direction, mode, output }
 
-      "+" -> binary(acc, &(&1 + &2))
-      "-" -> binary(acc, &(&1 - &2))
-      "*" -> binary(acc, &(&1 * &2))
-      "/" -> binary(acc, &(div(&1, &2)))
-      "%" -> binary(acc, &(rem(&1, &2)))
-      "`" -> binary(acc, fn (first, second) ->
-        cond do
-          first > second -> 0
-          true -> 1
-        end
-      end)
+        "_" -> if_hrz(acc)
+        "|" -> if_vrt(acc)
 
-      "\\" -> binary(acc, &([&2, &1]))
+        "+" -> binary(acc, &(&1 + &2))
+        "-" -> binary(acc, &(&1 - &2))
+        "*" -> binary(acc, &(&1 * &2))
+        "/" -> binary(acc, &(div(&1, &2)))
+        "%" -> binary(acc, &(rem(&1, &2)))
+        "`" -> binary(acc, fn (first, second) ->
+          cond do
+            first > second -> 0
+            true -> 1
+          end
+        end)
 
-      "$" -> { rest, keep_moving, direction, output }
-      "!" -> { [ invert(top) | rest ], keep_moving, direction, output }
-      _ -> { stack, keep_moving, direction, output }
+        "'" -> { stack, keep_moving, direction, toggle_mode(mode), output }
+        "\\" -> binary(acc, &([&2, &1]))
+
+        "$" -> { rest, keep_moving, direction, mode, output }
+        "!" -> { [ invert(top) | rest ], keep_moving, direction, mode, output }
+        _ -> { stack, keep_moving, direction, mode, output }
+      end
+    end
+  end
+
+  defp toggle_mode(mode) do
+    case mode do
+      :ascii -> :numeric
+      :numeric -> :ascii
+      _ -> :numeric
     end
   end
 
@@ -139,11 +152,11 @@ defmodule Befunge do
     end
   end
 
-  defp rnd_move({ stack, coords, _, output }) do
+  defp rnd_move({ stack, coords, _, mode, output }) do
     rnd_dir = [:left, :right, :up, :down]
       |> Enum.random
 
-    { stack, move(coords, rnd_dir), rnd_dir, output }
+    { stack, move(coords, rnd_dir), rnd_dir, mode, output }
   end
 
   defp output_as_integer(output, top) do
@@ -154,31 +167,31 @@ defmodule Befunge do
     output <> List.to_string([top])
   end
 
-  defp if_hrz({ stack, coords, _, output }) do
+  defp if_hrz({ stack, coords, _, mode, output }) do
     { top, rest } = Stack.pop(stack)
 
     case top do
-      0 -> { rest, move(coords, :right), :right, output }
-      _ -> { rest, move(coords, :left), :left, output }
+      0 -> { rest, move(coords, :right), :right, mode, output }
+      _ -> { rest, move(coords, :left), :left, mode, output }
     end
   end
 
-  defp if_vrt({ stack, coords, _, output }) do
+  defp if_vrt({ stack, coords, _, mode, output }) do
     { top, rest } = Stack.pop(stack)
 
     case top do
-      0 -> { rest, move(coords, :down), :down, output }
-      _ -> { rest, move(coords, :up), :up, output }
+      0 -> { rest, move(coords, :down), :down, mode, output }
+      _ -> { rest, move(coords, :up), :up, mode, output }
     end
   end
 
-  defp binary({ stack, coords, direction, output }, op) do
+  defp binary({ stack, coords, direction, mode, output }, op) do
     { first, without } = Stack.pop(stack)
     { second, rest } = Stack.pop(without)
 
     applied = [ op.(first, second) | rest ]
       |> List.flatten
-    { applied, move(coords, direction), direction, output }
+    { applied, move(coords, direction), direction, mode, output }
   end
 
   defp invert(val) do
@@ -189,7 +202,7 @@ defmodule Befunge do
   end
 end
 
-"!.@" <> "\n" <>
-""
+"                           v" <> "\n" <>
+"@,,,,,,,,,,,,'Hello World!'<"
   |> Befunge.execute
   |> IO.inspect
