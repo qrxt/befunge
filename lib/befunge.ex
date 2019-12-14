@@ -80,18 +80,44 @@ defmodule Befunge do
     { stack, coords, direction, output } = acc
     { top, rest } = Stack.pop(stack)
 
+    keep_moving = move(coords, direction)
+
+    # todo:
+    # "(switch mode)
+    # p(put)
+    # g(get)
     case symbol do
       ">" -> { stack, move(coords, :right), :right, output }
       "v" -> { stack, move(coords, :down), :down, output }
       "<" -> { stack, move(coords, :left), :left, output }
       "^" -> { stack, move(coords, :up), :up, output }
-      "." -> { rest, move(coords, direction), direction, output |> output_as_integer(top) }
-      "," -> { rest, move(coords, direction), direction, output |> output_as_string(top) }
-      ":" -> { [ top | stack ], move(coords, direction), direction, output }
+      "?" -> rnd_move(acc)
+      "#" -> { stack, jump(coords, direction), direction, output }
+
+      "." -> { rest, keep_moving, direction, output |> output_as_integer(top) }
+      "," -> { rest, keep_moving, direction, output |> output_as_string(top) }
+      ":" -> { [ top | stack ], keep_moving, direction, output }
+
       "_" -> if_hrz(acc)
       "|" -> if_vrt(acc)
-      "#" -> { stack, jump(coords, direction), direction, output }
-      _ -> { stack, move(coords, direction), direction, output }
+
+      "+" -> binary(acc, &(&1 + &2))
+      "-" -> binary(acc, &(&1 - &2))
+      "*" -> binary(acc, &(&1 * &2))
+      "/" -> binary(acc, &(div(&1, &2)))
+      "%" -> binary(acc, &(rem(&1, &2)))
+      "`" -> binary(acc, fn (first, second) ->
+        cond do
+          first > second -> 0
+          true -> 1
+        end
+      end)
+
+      "\\" -> binary(acc, &([&2, &1]))
+
+      "$" -> { rest, keep_moving, direction, output }
+      "!" -> { [ invert(top) | rest ], keep_moving, direction, output }
+      _ -> { stack, keep_moving, direction, output }
     end
   end
 
@@ -111,6 +137,13 @@ defmodule Befunge do
       :left -> { x - 2, y }
       :up -> { x, y - 2 }
     end
+  end
+
+  defp rnd_move({ stack, coords, _, output }) do
+    rnd_dir = [:left, :right, :up, :down]
+      |> Enum.random
+
+    { stack, move(coords, rnd_dir), rnd_dir, output }
   end
 
   defp output_as_integer(output, top) do
@@ -138,9 +171,25 @@ defmodule Befunge do
       _ -> { rest, move(coords, :up), :up, output }
     end
   end
+
+  defp binary({ stack, coords, direction, output }, op) do
+    { first, without } = Stack.pop(stack)
+    { second, rest } = Stack.pop(without)
+
+    applied = [ op.(first, second) | rest ]
+      |> List.flatten
+    { applied, move(coords, direction), direction, output }
+  end
+
+  defp invert(val) do
+    case val do
+      0 -> 1
+      _ -> 0
+    end
+  end
 end
 
-">#@1.@" <> "\n" <>
+"!.@" <> "\n" <>
 ""
   |> Befunge.execute
   |> IO.inspect
