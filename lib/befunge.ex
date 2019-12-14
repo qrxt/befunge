@@ -90,25 +90,40 @@ defmodule Befunge do
       { [ symbol | stack ], keep_moving, direction, mode, output }
     else
       case symbol do
+        # Start moving right
         ">" -> { stack, move(coords, :right), :right, mode, output }
+        # Start moving down
         "v" -> { stack, move(coords, :down), :down, mode, output }
+        # Start moving left
         "<" -> { stack, move(coords, :left), :left, mode, output }
+        # Start moving top
         "^" -> { stack, move(coords, :up), :up, mode, output }
+        # Start moving up
         "?" -> rnd_move(acc)
+        # Skip next cell
         "#" -> { stack, jump(coords, direction), direction, mode, output }
 
+        # Pop value and output as an integer followed by a space
         "." -> { rest, keep_moving, direction, mode, output |> output_as_integer(top) }
+        # Pop value and output as ASCII character
         "," -> { rest, keep_moving, direction, mode, output |> output_as_string(top) }
-        ":" -> { [ top | stack ], keep_moving, direction, mode, output }
 
+        # Pop a value; move right if value=0, left otherwise
         "_" -> if_hrz(acc)
+        # Pop a value; move down if value=0, up otherwise
         "|" -> if_vrt(acc)
 
+        # Pop a and b, then push a+b
         "+" -> binary(acc, &(&1 + &2))
+        # Pop a and b, then push a-b
         "-" -> binary(acc, &(&1 - &2))
+        # Pop a and b, then push a*b
         "*" -> binary(acc, &(&1 * &2))
+        # Pop a and b, then push div(a, b)
         "/" -> binary(acc, &(div(&1, &2)))
+        # Pop a and b, then push rem(a, b)
         "%" -> binary(acc, &(rem(&1, &2)))
+        # Pop a and b, then push 1 if b>a, otherwise zero
         "`" -> binary(acc, fn (first, second) ->
           cond do
             first > second -> 0
@@ -116,11 +131,18 @@ defmodule Befunge do
           end
         end)
 
+        # Toggle string mode
         "'" -> { stack, keep_moving, direction, toggle_mode(mode), output }
+        # Swap two values on top of the stack
         "\\" -> binary(acc, &([&2, &1]))
 
+        # Duplicate value on top of the stack
+        ":" -> { [ top | stack ], keep_moving, direction, mode, output }
+        # Discard value on top of the stack
         "$" -> { rest, keep_moving, direction, mode, output }
+        # Invert value on top of the stack (if the value is zero, push 1; otherwise, push zero.)
         "!" -> { [ invert(top) | rest ], keep_moving, direction, mode, output }
+        # Just keep moving
         _ -> { stack, keep_moving, direction, mode, output }
       end
     end
