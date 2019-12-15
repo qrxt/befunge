@@ -73,7 +73,7 @@ defmodule Befunge do
       # Start moving up
       "?" -> rnd_move(acc)
       # Skip next cell
-      "#" -> { stack, jump(coords, direction), direction, mode, output }
+      "#" -> { stack, move(coords, direction, 2), direction, mode, output }
 
       # Pop value and output as an integer followed by a space
       "." -> { rest, keep_moving, direction, mode, output |> output_as_integer(top) }
@@ -127,21 +127,12 @@ defmodule Befunge do
     end
   end
 
-  defp move({ x, y }, direction) do
+  defp move({ x, y }, direction, distance \\ 1) do
     case direction do
-      :right -> { x + 1, y }
-      :down -> { x, y + 1 }
-      :left -> { x - 1, y }
-      :up -> { x, y - 1 }
-    end
-  end
-
-  defp jump({ x, y }, direction) do
-    case direction do
-      :right -> { x + 2, y }
-      :down -> { x, y + 2 }
-      :left -> { x - 2, y }
-      :up -> { x, y - 2 }
+      :right -> { x + distance, y }
+      :down -> { x, y + distance }
+      :left -> { x - distance, y }
+      :up -> { x, y - distance}
     end
   end
 
@@ -195,7 +186,7 @@ defmodule Befunge do
   end
 end
 
-"'v'09p1. @  >@" <> "\n" <>
-"         >3.^ "
+"1#@@" <> "\n" <>
+""
   |> Befunge.execute
   |> IO.inspect
