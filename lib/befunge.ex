@@ -1,73 +1,44 @@
-defmodule Grid do
-  def into_map(list) do
-    0..length(list) - 1
-      |> Enum.zip(list)
-      |> Enum.into(%{})
-  end
-
-  def from(str) do
-    str
-      |> String.split("\n")
-      |> Enum.map(
-        fn row -> row
-          |> String.graphemes
-          |> into_map
-        end
-      )
-      |> into_map
-  end
-
-  def read_cell(command, coords) do
-    {x, y} = coords
-
-    command
-      |> Access.get(y)
-      |> Access.get(x)
-  end
-end
-
-defmodule Stack do
-  def pop([]) do
-    { 0, [] }
-  end
-
-  def pop(stack) do
-    [ first | rest ] = stack
-    { first, rest }
-  end
-
-  def push(stack, item) do
-    [ item | stack ]
-  end
-end
-
 defmodule Befunge do
-  defp execute(command, acc) do
-    { _, coords, _, _, output } = acc
-
-    current = command
-      |> Grid.read_cell(coords)
-
-    if current === "@" do
-      output
-    else
-      parsed = current
-        |> Integer.parse
-
-      next_acc = case parsed do
-        :error -> get_next_acc(acc, current)
-        { digit, _ } -> get_next_acc(acc, digit)
-      end
-
-      command
-        |> execute(next_acc)
-    end
-  end
-
   def execute(command) do
     command
       |> Grid.from
       |> execute({ [], { 0, 0 }, :right, :numeric, ""}) # start
+  end
+
+  defp execute(command, { stack, coords, direction, mode, output }) do
+    acc = { stack, coords, direction, mode, output }
+
+    current = command
+      |> Grid.read_cell(coords)
+
+    case { current, mode } do
+      { "@", :numeric } -> output
+      { "p", :numeric } -> put(command, acc)
+      { _, _ } -> execute(command, acc, current)
+    end
+  end
+
+  defp execute(command, acc, current) do
+    parsed = current
+      |> Integer.parse
+
+    next_acc = case parsed do
+      :error -> get_next_acc(acc, current)
+      { digit, _ } -> get_next_acc(acc, digit)
+    end
+
+    command
+      |> execute(next_acc)
+  end
+
+  defp put(command, { stack, coords, direction, mode, output }) do
+    { x, rest } = Stack.pop(stack)
+    { y, rest } = Stack.pop(rest)
+    { operator, rest } = Stack.pop(rest)
+
+    next_acc = { rest, move(coords, direction), direction, mode, output }
+
+    command |> Grid.set_cell({x, y}, operator) |> execute(next_acc)
   end
 
   defp get_next_acc(acc, digit) when (digit in 0..9) do
@@ -196,7 +167,7 @@ defmodule Befunge do
       0 -> { rest, move(coords, :right), :right, mode, output }
       _ -> { rest, move(coords, :left), :left, mode, output }
     end
-  end
+  end 
 
   defp if_vrt({ stack, coords, _, mode, output }) do
     { top, rest } = Stack.pop(stack)
@@ -219,12 +190,12 @@ defmodule Befunge do
   defp invert(val) do
     case val do
       0 -> 1
-      _ -> 0
+      _ -> 0 
     end
   end
 end
 
-"                           v" <> "\n" <>
-"@,,,,,,,,,,,,'Hello World!'<"
+"'v'09p1. @  >@" <> "\n" <>
+"         >3.^ "
   |> Befunge.execute
   |> IO.inspect
