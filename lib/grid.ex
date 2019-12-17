@@ -17,22 +17,22 @@ defmodule Grid do
         |> into_map
     end
   
-    def read_cell(command, coords) do
+    def read_cell(grid, coords) do
       { x, y } = coords
   
-      command
+      grid
         |> Access.get(y)
         |> Access.get(x)
     end
 
-    def set_cell(command, coords, operator) do 
+    def set_cell(grid, coords, operator) do 
       { x, y } = coords
-      row = command |> Map.get(y)
+      row = grid |> Map.get(y)
 
       modified = row
         |> Map.put(x, operator)
 
-      command
+      grid
         |> Map.put(y, modified)
     end
   end

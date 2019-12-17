@@ -14,6 +14,7 @@ defmodule Befunge do
     case { current, mode } do
       { "@", :numeric } -> output
       { "p", :numeric } -> put(command, acc)
+      { "g", :numeric } -> get(command, acc)
       { _, _ } -> execute(command, acc, current)
     end
   end
@@ -32,13 +33,25 @@ defmodule Befunge do
   end
 
   defp put(command, { stack, coords, direction, mode, output }) do
-    { x, rest } = Stack.pop(stack)
-    { y, rest } = Stack.pop(rest)
+    { y, rest } = Stack.pop(stack)
+    { x, rest } = Stack.pop(rest)
     { operator, rest } = Stack.pop(rest)
 
     next_acc = { rest, move(coords, direction), direction, mode, output }
 
-    command |> Grid.set_cell({x, y}, operator) |> execute(next_acc)
+    command 
+      |> Grid.set_cell({x, y}, operator)
+      |> execute(next_acc)
+  end
+
+  defp get(command, { stack, coords, direction, mode, output }) do
+    { x, rest } = Stack.pop(stack)
+    { y, rest } = Stack.pop(rest)
+    symbol = Grid.read_cell(command, { x, y })
+    
+    next_acc = { [ symbol | rest ], move(coords, direction), direction, mode, output }
+
+    command |> execute(next_acc)
   end
 
   defp get_next_acc(acc, digit) when (digit in 0..9) do
@@ -186,7 +199,8 @@ defmodule Befunge do
   end
 end
 
-"1#@@" <> "\n" <>
-""
+">g02pv " <> "\n" <>
+"v    < " <> "\n" <>
+" 1.@   "
   |> Befunge.execute
   |> IO.inspect
